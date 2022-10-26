@@ -51,6 +51,10 @@ export class PlotlyGraph extends HTMLElement {
     restyleListener?: EventEmitter;
     refreshTimeout?: number;
   } = {};
+  update() {
+    // fix to make card-mod work
+    // see here: https://github.com/thomasloven/lovelace-card-mod/blob/master/src/patch/ha-card.ts#L49
+  }
   disconnectedCallback() {
     this.handles.resizeObserver!.disconnect();
     this.handles.relayoutListener!.off("plotly_relayout", this.onRelayout);
@@ -105,7 +109,8 @@ export class PlotlyGraph extends HTMLElement {
     this.setupListeners();
     this.fetch(this.getAutoFetchRange())
       .then(() => this.fetch(this.getAutoFetchRange())) // again so home assistant extends until end of time axis
-      .then(() => (this.contentEl.style.visibility = ""));
+      .then(() => (this.contentEl.style.visibility = ""))
+      .then(() => this.update());
   }
   async withoutRelayout(fn: Function) {
     this.isInternalRelayout++;
