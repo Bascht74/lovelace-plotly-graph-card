@@ -16,7 +16,7 @@ export type InputConfig = {
     entity: string;
     attribute?: string;
     statistic?: StatisticType;
-    period?: StatisticPeriod;
+    period?: StatisticPeriod | "auto";
     unit_of_measurement?: string;
     lambda?: string;
     show_value?:
@@ -73,6 +73,7 @@ export type EntityIdStatisticsConfig = {
   entity: string;
   statistic: StatisticType;
   period: StatisticPeriod;
+  autoPeriod: boolean;
 };
 export type EntityIdConfig =
   | EntityIdStateConfig
@@ -95,7 +96,7 @@ export function isEntityIdAttrConfig(
 export function isEntityIdStatisticsConfig(
   entityConfig: EntityIdConfig
 ): entityConfig is EntityIdStatisticsConfig {
-  return "statistic" in entityConfig;
+  return "period" in entityConfig;
 }
 
 export type Timestamp = number;

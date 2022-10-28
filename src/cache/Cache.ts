@@ -11,6 +11,7 @@ import {
   isEntityIdStatisticsConfig,
   HistoryInRange,
 } from "../types";
+import { StatisticPeriod } from "../recorder-types";
 
 export function mapValues<T, S>(
   o: Record<string, T>,

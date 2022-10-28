@@ -20,6 +20,7 @@ import { sleep } from "./utils";
 import { Datum } from "plotly.js";
 import colorSchemes, { isColorSchemeArray } from "./color-schemes";
 import { parseISO } from "date-fns";
+import { StatisticPeriod } from "./recorder-types";
 
 const componentName = isProduction ? "plotly-graph" : "plotly-graph-dev";
 
@@ -207,7 +208,7 @@ export class PlotlyGraph extends HTMLElement {
       entities: config.entities.map((entityIn, entityIdx) => {
         if (typeof entityIn === "string") entityIn = { entity: entityIn };
 
-        const entity = merge(
+        const entity: any = merge(
           {
             hovertemplate: `<b>%{customdata.name}</b><br><i>%{x}</i><br>%{y}%{customdata.unit_of_measurement}<extra></extra>`,
             mode: "lines",
@@ -229,6 +230,9 @@ export class PlotlyGraph extends HTMLElement {
             entity.statistic || ""
           );
           if (!validStatistic) entity.statistic = "mean";
+          if ((entity.period = "auto")) {
+            entity.autoPeriod = true;
+          }
           const validPeriod = ["5minute", "hour", "day", "month"].includes(
             entity.period || ""
           );
@@ -296,6 +300,30 @@ export class PlotlyGraph extends HTMLElement {
     await this.fetch(this.getAutoFetchRange());
   }
   fetch = async (range: TimestampRange) => {
+    for (const entity of this.config.entities) {
+      if ((entity as any).autoPeriod) {
+        if (isEntityIdStatisticsConfig(entity) && entity.autoPeriod) {
+          const spanInMinutes = (range[1] - range[0]) / 1000 / 60;
+          const MIN_POINTS_PER_RANGE = 500;
+          const period2minutes: [StatisticPeriod, number][] = [
+            // needs to be sorted in ascending order
+            // @ts-ignore
+            ["5minute", 5],
+            ["hour", 60],
+            ["day", 60 * 24],
+            ["month", 60 * 24 * 30],
+          ];
+          let period = period2minutes[0][0];
+          for (const [aPeriod, minutesPerPoint] of period2minutes) {
+            const pointsInSpan = spanInMinutes / minutesPerPoint;
+            if (pointsInSpan > MIN_POINTS_PER_RANGE) period = aPeriod;
+            console.log(aPeriod, pointsInSpan, period);
+          }
+          entity.period = period;
+          this.config.layout.title = period;
+        }
+      }
+    }
     const visibleEntities = this.config.entities.filter(
       (_, i) => this.contentEl.data[i]?.visible !== "legendonly"
     );
