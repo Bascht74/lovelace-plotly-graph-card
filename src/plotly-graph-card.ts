@@ -51,9 +51,50 @@ export class PlotlyGraph extends HTMLElement {
     restyleListener?: EventEmitter;
     refreshTimeout?: number;
   } = {};
-  update() {
-    // fix to make card-mod work
-    // see here: https://github.com/thomasloven/lovelace-card-mod/blob/master/src/patch/ha-card.ts#L49
+  constructor() {
+    super();
+    const shadow = this.attachShadow({ mode: "open" });
+    shadow.innerHTML = `
+      <ha-card>
+        <style>
+          ha-card{
+            padding: ${padding}px;
+            height: 100%;
+            box-sizing: border-box;
+            background: transparent;
+          }
+          button#reset.hidden{
+            display: none;
+          }
+          button#reset {
+            position: absolute;
+            display: block;
+            top: 13px;
+            left: 15px;
+            height: 19px;
+            color: rgb(114, 114, 114);
+            background: rgb(238, 238, 238);
+            border: 0px;
+            border-radius: 3px;
+          }
+          #msg {
+            position: absolute;
+            color: red;
+            background: rgba(0, 0, 0, 0.4);
+          }
+        </style>
+        <span id="msg"> </span>
+        <div id="plotly"> </div>
+        <button id="reset" class="hidden">reset</button>
+      </ha-card>`;
+    this.msgEl = shadow.querySelector("#msg")!;
+    this.cardEl = shadow.querySelector("ha-card")!;
+    this.contentEl = shadow.querySelector("div#plotly")!;
+    this.buttonEl = shadow.querySelector("button#reset")!;
+    this.buttonEl.addEventListener("click", this.exitBrowsingMode);
+    insertStyleHack(shadow.querySelector("style")!);
+    this.contentEl.style.visibility = "hidden";
+    this.withoutRelayout(() => Plotly.newPlot(this.contentEl, [], {}));
   }
   disconnectedCallback() {
     this.handles.resizeObserver!.disconnect();
@@ -62,55 +103,10 @@ export class PlotlyGraph extends HTMLElement {
     clearTimeout(this.handles.refreshTimeout!);
   }
   connectedCallback() {
-    if (!this.contentEl) {
-      const shadow = this.attachShadow({ mode: "open" });
-      shadow.innerHTML = `
-        <ha-card>
-          <style>
-            ha-card{
-              padding: ${padding}px;
-              height: 100%;
-              box-sizing: border-box;
-              background: transparent;
-            }
-            button#reset.hidden{
-              display: none;
-            }
-            button#reset {
-              position: absolute;
-              display: block;
-              top: 13px;
-              left: 15px;
-              height: 19px;
-              color: rgb(114, 114, 114);
-              background: rgb(238, 238, 238);
-              border: 0px;
-              border-radius: 3px;
-            }
-            #msg {
-              position: absolute;
-              color: red;
-              background: rgba(0, 0, 0, 0.4);
-            }
-          </style>
-          <span id="msg"> </span>
-          <div id="plotly"> </div>
-          <button id="reset" class="hidden">reset</button>
-        </ha-card>`;
-      this.msgEl = shadow.querySelector("#msg")!;
-      this.cardEl = shadow.querySelector("ha-card")!;
-      this.contentEl = shadow.querySelector("div#plotly")!;
-      this.buttonEl = shadow.querySelector("button#reset")!;
-      this.buttonEl.addEventListener("click", this.exitBrowsingMode);
-      insertStyleHack(shadow.querySelector("style")!);
-      this.contentEl.style.visibility = "hidden";
-      this.withoutRelayout(() => Plotly.newPlot(this.contentEl, [], {}));
-    }
     this.setupListeners();
     this.fetch(this.getAutoFetchRange())
       .then(() => this.fetch(this.getAutoFetchRange())) // again so home assistant extends until end of time axis
-      .then(() => (this.contentEl.style.visibility = ""))
-      .then(() => this.update());
+      .then(() => (this.contentEl.style.visibility = ""));
   }
   async withoutRelayout(fn: Function) {
     this.isInternalRelayout++;
@@ -290,7 +286,7 @@ export class PlotlyGraph extends HTMLElement {
       minimal_response: config.minimal_response ?? true,
     };
 
-    const was = this.config;
+    const was = this.config || {};
     this.config = newConfig;
     const is = this.config;
     if (!this.contentEl) return;
